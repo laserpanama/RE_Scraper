@@ -1,0 +1,4 @@
+﻿Primario: #6C5CE7
+Neutro: #2D3436
+Éxito: #00B894
+Fondo: #F7F7FB

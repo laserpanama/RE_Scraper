@@ -1,0 +1,207 @@
+{
+  "modules": [
+    {
+      "id": "mod_1",
+      "type": "http.request",
+      "name": "Obtener HTML página principal",
+      "settings": {
+        "method": "GET",
+        "url": "https://www.encuentra24.com/panama-en/searchresult/real-estate-for-sale-apartments-condos"
+      }
+    },
+    {
+      "id": "mod_2",
+      "type": "tools.regex",
+      "name": "Extraer propiedades (URL, Imagen, Precio)",
+      "settings": {
+        "text": "{{mod_1.body}}",
+        "pattern": "href=\"(\\/panama-en\\/real-estate-for-sale\\/apartments-condos\\/[^\"]+)\".*?src=\"([^\"]+)\".*?\\$(\\d{1,3}(,\\d{3})*(\\.\\d{2})?)",
+        "flags": "g"
+      }
+    },
+    {
+      "id": "mod_3",
+      "type": "tools.iterator",
+      "name": "Iterar propiedades",
+      "settings": {
+        "items": "{{mod_2.matches}}"
+      }
+    },
+    {
+      "id": "mod_4",
+      "type": "http.request",
+      "name": "Descargar imagen propiedad",
+      "settings": {
+        "method": "GET",
+        "url": "https://www.encuentra24.com{{mod_3.value[1]}}",
+        "responseType": "arraybuffer"
+      }
+    },
+    {
+      "id": "mod_5",
+      "type": "tools.base64encode",
+      "name": "Convertir imagen a Base64",
+      "settings": {
+        "binaryInput": "mod_4.rawBody"
+      }
+    },
+    {
+      "id": "mod_6",
+      "type": "http.request",
+      "name": "Enviar imagen a OCR.space",
+      "settings": {
+        "method": "POST",
+        "url": "https://api.ocr.space/parse/image",
+        "headers": {
+          "apikey": "{{OCR_SPACE_API_KEY}}",
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        "bodyType": "form",
+        "body": {
+          "base64Image": "data:image/jpeg;base64,{{mod_5.base64Encoded}}",
+          "language": "spa",
+          "isOverlayRequired": "false"
+        }
+      }
+    },
+    {
+      "id": "mod_7",
+      "type": "tools.parsejson",
+      "name": "Parsear respuesta OCR",
+      "settings": {
+        "source": "mod_6.body"
+      }
+    },
+    {
+      "id": "mod_8",
+      "type": "tools.text.split",
+      "name": "Separar líneas OCR",
+      "settings": {
+        "text": "{{mod_7.ParsedResults[0].ParsedText}}",
+        "delimiter": "\n"
+      }
+    },
+    {
+      "id": "mod_9",
+      "type": "tools.aggregate",
+      "name": "Extraer campos con regex",
+      "settings": {
+        "items": "mod_8",
+        "fields": {
+          "precio": {
+            "condition": "regex: (\\$|USD\\s?)\\s?[\\d{1,3}(,\\d{3})*(\\.\\d{2})?|\\d+]"
+          },
+          "habitaciones": {
+            "condition": "regex: (\\d+)\\s?(habitaciones|recámaras|cuartos)"
+          },
+          "baños": {
+            "condition": "regex: (\\d+(\\.\\d)?)\\s?(baños|baño)"
+          },
+          "ubicacion": {
+            "condition": "text contains Panamá, Coronado, Calle, Provincia, Ciudad, Playa"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_10",
+      "type": "tools.text.replace",
+      "name": "Limpiar precio (quitar $, USD, comas)",
+      "settings": {
+        "text": "{{mod_9.precio}}",
+        "replacements": [
+          { "from": "\\$", "to": "" },
+          { "from": "USD", "to": "" },
+          { "from": ",", "to": "" },
+          { "from": " ", "to": "" }
+        ]
+      }
+    },
+    {
+      "id": "mod_11",
+      "type": "tools.number",
+      "name": "Convertir precio a número",
+      "settings": {
+        "from": "{{mod_10.output}}"
+      }
+    },
+    {
+      "id": "mod_12",
+      "type": "filter",
+      "name": "Precio ≥ 600,000",
+      "settings": {
+        "condition": "{{mod_11.output}} >= 600000"
+      }
+    },
+    {
+      "id": "mod_13",
+      "type": "google.sheets.append",
+      "name": "Guardar en Google Sheets",
+      "connection": "mi_google_sheets",
+      "settings": {
+        "spreadsheetId": "{{SHEET_ID}}",
+        "range": "A:H",
+        "values": [
+          [
+            "{{now}}",
+            "{{mod_9.descripcion}}",
+            "{{mod_9.precio}}",
+            "{{mod_11.output}}",
+            "{{mod_9.habitaciones}}",
+            "{{mod_9.baños}}",
+            "{{mod_9.ubicacion}}",
+            "{{mod_5.base64Encoded}}"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "mod_14",
+      "type": "http.request",
+      "name": "Delay 3 segundos",
+      "settings": {
+        "method": "GET",
+        "url": "https://httpbin.org/delay/3"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "mi_google_sheets",
+      "type": "google_sheets"
+    }
+  ],
+  "variables": [
+    {
+      "key": "OCR_SPACE_API_KEY",
+      "value": "TU_API_KEY_OCR_SPACE"
+    },
+    {
+      "key": "SHEET_ID",
+      "value": "TU_ID_DE_HOJA_GOOGLE_SHEETS"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "trigger_1",
+      "type": "schedule",
+      "name": "Ejecutar cada hora",
+      "settings": {
+        "interval": {
+          "unit": "hours",
+          "value": 1
+        }
+      }
+    }
+  ],
+  "routes": [
+    {
+      "from": "mod_13",
+      "to": "mod_14"
+    },
+    {
+      "from": "mod_14",
+      "to": "mod_3"
+    }
+  ]
+}
