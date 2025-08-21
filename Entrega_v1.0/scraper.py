@@ -1,9 +1,17 @@
-﻿import csv, re, sys
+﻿import csv, re, sys, time, logging
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-def log(msg): print(f"[Meow] {msg}", flush=True)
+# Setup logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    filename='scraper.log',
+                    filemode='w')
+
+def log(msg):
+    print(f"[Meow] {msg}", flush=True)
+    logging.info(msg)
 
 URL = "https://www.encuentra24.com/panama-es/searchresult/bienes-raices-venta-de-propiedades?regionslug=prov-panama&f_price=600000-"
 headers = {
@@ -18,10 +26,33 @@ def clean(txt):
     if not txt: return ""
     return re.sub(r"\s+", " ", txt).strip()
 
+def get_with_retries(url, headers, retries=3, backoff_factor=0.5):
+    for i in range(retries):
+        try:
+            log(f"Intentando descargar la página (intento {i+1}/{retries})...")
+            logging.info(f"URL: {url}")
+            logging.info(f"Headers: {headers}")
+            r = requests.get(url, headers=headers, timeout=30)
+            r.raise_for_status()
+            return r
+        except requests.exceptions.RequestException as e:
+            log(f"Error al descargar: {e}")
+            logging.error(f"Error en el intento {i+1}: {e}")
+            if i < retries - 1:
+                sleep_time = backoff_factor * (2 ** i)
+                log(f"Esperando {sleep_time} segundos para reintentar...")
+                time.sleep(sleep_time)
+            else:
+                log("Máximo de reintentos alcanzado. Fallo al descargar la página.")
+                raise
+
 def main():
     log("Descargando página...")
-    r = requests.get(URL, headers=headers, timeout=30)
-    r.raise_for_status()
+    try:
+        r = get_with_retries(URL, headers)
+    except requests.exceptions.RequestException:
+        sys.exit(1)
+
     html = r.text
     html_dump.write_text(html, encoding="utf-8")
 
