@@ -16,9 +16,6 @@ The project is organized into the following directories:
 
 ```
 .
-├── assets/
-│   ├── dock_guitar_silhouette.ai  (Placeholder for hero artwork)
-│   └── grain.png                  (Texture file for background)
 ├── output/
 │   ├── poster_audit.log           (Generated log file)
 │   └── woodstock_poster.pdf       (Generated PDF file)
@@ -27,7 +24,6 @@ The project is organized into the following directories:
 └── README.md                      (This file)
 ```
 
-- **`assets/`**: Contains all the external graphic assets required by the script.
 - **`output/`**: The default location for all generated files (PDFs and logs).
 - **`src/`**: Contains the core InDesign script.
 
@@ -35,15 +31,13 @@ The project is organized into the following directories:
 
 1.  **Clone or download this repository.**
 2.  **Install Dependencies**: Make sure you have the required fonts and Adobe InDesign installed (see below).
-3.  **Place Assets**:
-    *   Place your grain texture in `assets/grain.png`.
-    *   Place your hero illustration in `assets/dock_guitar_silhouette.ai`.
-4.  **Run the script in InDesign**:
+3.  **Run the script in InDesign**:
     *   Open Adobe InDesign.
     *   Open the Scripts panel (`Window` > `Utilities` > `Scripts`).
     *   Right-click on the `User` folder and choose `Reveal in Finder` (macOS) or `Reveal in Explorer` (Windows).
     *   Place the `src/posterGenerator.jsx` file (or a shortcut/alias to it) in this folder.
     *   Return to InDesign, and the script will appear in the Scripts panel. Double-click it to run.
+    *   The script will then prompt you to select the grain texture and hero artwork files from your computer.
 
 ## Dependencies
 
@@ -54,9 +48,9 @@ The project is organized into the following directories:
   - `HelveticaNeue-Bold`
 
 ### Assets
-The script requires two asset files to be present in the `assets/` directory:
-- `grain.png`: A texture file used for the background. A sample can be created or found from a stock texture site.
-- `dock_guitar_silhouette.ai`: An Adobe Illustrator file for the central artwork. This is a placeholder and should be replaced with your own artwork.
+The script will prompt you to select the following files when it runs:
+- A **grain texture** file (e.g., PNG, JPG, TIFF).
+- A **hero artwork** file (e.g., AI, PDF, EPS).
 
 ## Configuration
 

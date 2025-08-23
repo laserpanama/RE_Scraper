@@ -26,8 +26,6 @@ function getConfig() {
         basePath: basePath,
         outputFile: File(outputFolder + "/woodstock_poster.pdf"),
         logFile: File(outputFolder + "/poster_audit.log"),
-        grainFile: File(basePath + "/assets/grain.png"),
-        heroArtworkFile: File(basePath + "/assets/dock_guitar_silhouette.ai"),
 
         // Document
         pageWidth: 297 * mmToPt,
@@ -70,13 +68,32 @@ function main() {
     log("Script started on " + config.os);
 
     try {
+        // § 2a. Interactive File Selection
+        log("Prompting user for asset files.");
+        var grainFile = File.openDialog("Please select a grain texture file (e.g., PNG, JPG, TIFF)");
+        if (!grainFile) {
+            log("User cancelled grain file selection. Exiting.");
+            alert("Script cancelled: No grain file selected.");
+            return;
+        }
+        log("User selected grain file: " + grainFile.fsName);
+
+        var heroFile = File.openDialog("Please select the hero artwork file (e.g., AI, PDF, EPS)");
+        if (!heroFile) {
+            log("User cancelled hero artwork selection. Exiting.");
+            alert("Script cancelled: No hero artwork file selected.");
+            return;
+        }
+        log("User selected hero artwork file: " + heroFile.fsName);
+
+        // § 2b. Poster Generation
         var doc = createDocument(config);
         var swatches = defineSwatches(doc, config.colors);
 
-        drawBackground(doc, config, swatches);
+        drawBackground(doc, config, swatches, grainFile);
         drawGrid(doc, config);
         drawEventName(doc, config, swatches);
-        drawHero(doc, config);
+        drawHero(doc, config, heroFile);
         drawBadge(doc, config, swatches);
         drawPerformerStrip(doc, config, swatches);
         drawVenueFooter(doc, config, swatches);
@@ -152,7 +169,7 @@ function defineSwatches(doc, colors) {
 }
 
 // Drawing Functions
-function drawBackground(doc, c, sw) {
+function drawBackground(doc, c, sw, grainFile) {
     log("Drawing background rectangle + applying grain.");
     var page = doc.pages[0];
     var bgLayer = doc.layers.add({ name: "Background" });
@@ -163,14 +180,14 @@ function drawBackground(doc, c, sw) {
         strokeWeight: 0
     });
 
-    var grainFileObj = c.grainFile;
-    if (!grainFileObj.exists) throw "Missing grain texture: " + grainFileObj.fsName;
+    // The grainFile object is now passed as a parameter
+    if (!grainFile || !grainFile.exists) throw "The provided grain texture file is not valid.";
 
     var grainRect = page.rectangles.add(bgLayer, {
         geometricBounds: [-c.bleedPt, -c.bleedPt, c.pageHeight + c.bleedPt, c.pageWidth + c.bleedPt],
         strokeWeight: 0
     });
-    grainRect.place(grainFileObj);
+    grainRect.place(grainFile);
     grainRect.transparencySettings.blendingSettings.blendMode = BlendMode.MULTIPLY;
     grainRect.transparencySettings.blendingSettings.opacity = 15;
 }
@@ -213,7 +230,7 @@ function drawEventName(doc, c, sw) {
     evTxt.fillColor = sw.offWhite;
 }
 
-function drawHero(doc, c) {
+function drawHero(doc, c, heroFile) {
     log("Importing hero artwork.");
     var page = doc.pages[0];
     var heroY = c.contentMarginY + (c.pageHeight - 2 * c.contentMarginY) * (0.22 + 0.03);
@@ -223,8 +240,8 @@ function drawHero(doc, c) {
         strokeWeight: 0
     });
 
-    var heroFile = c.heroArtworkFile;
-    if (!heroFile.exists) throw "Missing hero artwork: " + heroFile.fsName;
+    // The heroFile object is now passed as a parameter
+    if (!heroFile || !heroFile.exists) throw "The provided hero artwork file is not valid.";
     heroFrame.place(heroFile);
 }
 
@@ -328,6 +345,8 @@ function computeHash(outputFile, os, log) {
     var hash = "N/A";
 
     if (os === "WINDOWS") {
+        // On Windows, the file path (fsName) uses backslashes.
+        // These must be escaped for the system.callSystem() command.
         hashCmd = 'certutil -hashfile "' + outputFile.fsName.replace(/\\/g, '\\\\') + '" SHA256';
         hashOutput = system.callSystem(hashCmd);
         var lines = hashOutput.split(/[\r\n]/);
