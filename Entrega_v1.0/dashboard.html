@@ -56,15 +56,15 @@ async function loadCSV(){
   rows.forEach(r => {
     const tr = document.createElement('tr');
     const [titulo,precio,ubicacion,link] = r;
-    tr.innerHTML = 
-      <td></td>
-      <td></td>
-      <td></td>
-      <td><a href='' target='_blank'>Abrir</a></td>;
+    tr.innerHTML = `
+      <td>${titulo}</td>
+      <td>${precio}</td>
+      <td>${ubicacion}</td>
+      <td><a href='${link}' target='_blank'>Abrir</a></td>`;
     tbody.appendChild(tr);
   });
 
-  document.getElementById('summary').textContent = Filas: ;
+  document.getElementById('summary').textContent = `Filas: ${rows.length}`;
 }
 loadCSV();
 </script>
